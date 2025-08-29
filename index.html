@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MIDI → Аудио Конвертер</title>
+  <style>
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #121218;
+      --bg-card: #1a1a25;
+      --bg-history: #252535;
+      --accent-primary: #8a2be2;
+      --accent-secondary: #6a0dad;
+      --accent-success: #00c853;
+      --accent-warning: #ffab00;
+      --accent-error: #ff1744;
+      --text-primary: #ffffff;
+      --text-secondary: #b0b0c0;
+      --text-muted: #707080;
+      --border-radius: 12px;
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, var(--bg-primary), #0f0c29);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      animation: fadeInDown 0.8s ease-out;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(45deg, var(--accent-primary), var(--accent-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 2rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    .history-card {
+      background: var(--bg-history);
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    .step-title {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      color: var(--text-secondary);
+      font-size: 1.3rem;
+    }
+
+    .step-number {
+      background: var(--accent-primary);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1rem;
+    }
+
+    .file-upload {
+      border: 2px dashed rgba(138, 43, 226, 0.3);
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      background: rgba(26, 26, 37, 0.5);
+      margin-bottom: 1rem;
+    }
+
+    .file-upload:hover {
+      border-color: var(--accent-primary);
+      background: rgba(138, 43, 226, 0.1);
+    }
+
+    .file-upload i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      color: var(--accent-primary);
+    }
+
+    .file-list {
+      max-height: 200px;
+      overflow-y: auto;
+      margin: 1rem 0;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .file-item:last-child {
+      border-bottom: none;
+    }
+
+    .file-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn {
+      background: linear-gradient(45deg, var(--accent-primary), var(--accent-secondary));
+      color: white;
+      border: none;
+      padding: 0.8rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(138, 43, 226, 0.4);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-success {
+      background: linear-gradient(45deg, var(--accent-success), #009624);
+    }
+
+    .btn-warning {
+      background: linear-gradient(45deg, var(--accent-warning), #e65100);
+    }
+
+    .btn-error {
+      background: linear-gradient(45deg, var(--accent-error), #d50000);
+    }
+
+    .btn-sm {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+    }
+
+    .progress-container {
+      display: none;
+      margin: 1rem 0;
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .preview-section {
+      display: none;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    .audio-player {
+      width: 100%;
+      margin: 1rem 0;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .visualization {
+      width: 100%;
+      height: 200px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      margin-top: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .status {
+      padding: 1rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+      display: none;
+    }
+
+    .status.success {
+      background: rgba(0, 200, 83, 0.1);
+      color: var(--accent-success);
+      display: block;
+    }
+
+    .status.error {
+      background: rgba(255, 23, 68, 0.1);
+      color: var(--accent-error);
+      display: block;
+    }
+
+    .history-item {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-left: 3px solid var(--accent-primary);
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .history-title {
+      font-weight: bold;
+      color: var(--text-primary);
+    }
+
+    .history-time {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    .history-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .file-info {
+      background: rgba(138, 43, 226, 0.1);
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 1rem;
+      margin: 1rem 0;
+      flex-wrap: wrap;
+    }
+
+    .control-group {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .control-label {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(138, 43, 226, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(138, 43, 226, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(138, 43, 226, 0); }
+    }
+
+    footer {
+      text-align: center;
+      color: var(--text-secondary);
+      margin-top: 3rem;
+      font-size: 0.9rem;
+    }
+
+    /* Modal styles */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+    }
+
+    .modal-content {
+      background: var(--bg-card);
+      padding: 2rem;
+      border-radius: 12px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-header {
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+      font-size: 1.3rem;
+    }
+
+    .modal-body {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 1rem;
+      border-radius: 8px;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 1024px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 1rem;
+      }
+      
+      .card {
+        padding: 1.5rem;
+      }
+      
+      h1 {
+        font-size: 2rem;
+      }
+      
+      .controls-row {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>MIDI → Аудио Конвертер</h1>
+      <p class="subtitle">Профессиональный инструмент для конвертации MIDI файлов</p>
+    </header>
+
+    <div class="main-content">
+      <div class="main-panel">
+        <div class="card">
+          <div class="step-title">
+            <div class="step-number">1</div>
+            <h2>Загрузите MIDI файлы</h2>
+          </div>
+          
+          <div class="file-upload" id="dropZone">
+            <div>📁</div>
+            <p>Перетащите MIDI файлы сюда или нажмите для выбора</p>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
+              Поддерживаются форматы: .mid, .midi
+            </p>
+            <input type="file" id="midiFile" accept=".mid,.midi" multiple style="display: none;">
+          </div>
+          
+          <div class="file-list" id="fileList" style="display: none;">
+            <h4>Выбранные файлы:</h4>
+            <div id="fileItems"></div>
+          </div>
+          
+          <div class="controls-row">
+            <button class="btn" id="convertBtn" disabled>
+              Конвертировать все
+            </button>
+            <button class="btn btn-secondary" id="clearBtn" disabled>
+              Очистить
+            </button>
+          </div>
+          
+          <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">Готов к конвертации...</div>
+          </div>
+          
+          <div class="status" id="statusMessage"></div>
+        </div>
+
+        <div class="card preview-section" id="previewSection">
+          <div class="step-title">
+            <div class="step-number">2</div>
+            <h2>Предпросмотр и визуализация</h2>
+          </div>
+          
+          <div class="audio-player">
+            <audio id="audioPlayer" controls style="width: 100%;">
+              Ваш браузер не поддерживает аудио элемент.
+            </audio>
+          </div>
+          
+          <div class="controls-row">
+            <button class="btn btn-success" id="downloadBtn">
+              Скачать WAV
+            </button>
+            <button class="btn btn-secondary" id="infoBtn">
+              Информация
+            </button>
+            <button class="btn btn-warning" id="newConvertBtn">
+              Новая конвертация
+            </button>
+          </div>
+          
+          <div class="visualization" id="visualization">
+            <canvas id="visualizer" width="800" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card history-card">
+        <div class="step-title">
+          <div class="step-number">3</div>
+          <h2>История конвертаций</h2>
+        </div>
+        
+        <div id="historyList">
+          <p style="color: var(--text-secondary); text-align: center; padding: 2rem;">
+            История конвертаций будет отображаться здесь
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>© 2024 MIDI → Аудио Конвертер | Все конвертации происходят локально в вашем браузере</p>
+    </footer>
+  </div>
+
+  <script>
+    class MIDIConverter {
+      constructor() {
+        this.files = [];
+        this.convertedFiles = [];
+        this.audioContext = null;
+        this.analyser = null;
+        this.isVisualizing = false;
+        this.currentAudioBlob = null;
+        this.currentFileName = '';
+        
+        this.initElements();
+        this.bindEvents();
+      }
+      
+      initElements() {
+        this.dropZone = document.getElementById('dropZone');
+        this.midiFile = document.getElementById('midiFile');
+        this.convertBtn = document.getElementById('convertBtn');
+        this.clearBtn = document.getElementById('clearBtn');
+        this.fileList = document.getElementById('fileList');
+        this.fileItems = document.getElementById('fileItems');
+        this.progressContainer = document.getElementById('progressContainer');
+        this.progressFill = document.getElementById('progressFill');
+        this.progressText = document.getElementById('progressText');
+        this.previewSection = document.getElementById('previewSection');
+        this.audioPlayer = document.getElementById('audioPlayer');
+        this.visualizer = document.getElementById('visualizer');
+        this.statusMessage = document.getElementById('statusMessage');
+        this.downloadBtn = document.getElementById('downloadBtn');
+        this.infoBtn = document.getElementById('infoBtn');
+        this.newConvertBtn = document.getElementById('newConvertBtn');
+        this.historyList = document.getElementById('historyList');
+        this.ctx = this.visualizer.getContext('2d');
+      }
+      
+      bindEvents() {
+        this.dropZone.addEventListener('click', () => this.midiFile.click());
+        this.dropZone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          this.dropZone.style.borderColor = 'var(--accent-primary)';
+          this.dropZone.style.backgroundColor = 'rgba(138, 43, 226, 0.2)';
+        });
+        
+        this.dropZone.addEventListener('dragleave', () => {
+          this.dropZone.style.borderColor = 'rgba(138, 43, 226, 0.3)';
+          this.dropZone.style.backgroundColor = 'rgba(26, 26, 37, 0.5)';
+        });
+        
+        this.dropZone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          this.dropZone.style.borderColor = 'rgba(138, 43, 226, 0.3)';
+          this.dropZone.style.backgroundColor = 'rgba(26, 26, 37, 0.5)';
+          
+          if (e.dataTransfer.files.length) {
+            this.handleFilesSelect(Array.from(e.dataTransfer.files));
+          }
+        });
+        
+        this.midiFile.addEventListener('change', (e) => {
+          if (e.target.files.length) {
+            this.handleFilesSelect(Array.from(e.target.files));
+          }
+        });
+        
+        this.convertBtn.addEventListener('click', () => this.convertAllFiles());
+        this.clearBtn.addEventListener('click', () => this.clearFiles());
+        this.downloadBtn.addEventListener('click', () => this.downloadCurrentFile());
+        this.infoBtn.addEventListener('click', () => this.showFileInfo());
+        this.newConvertBtn.addEventListener('click', () => this.startNewConversion());
+      }
+      
+      handleFilesSelect(files) {
+        files.forEach(file => {
+          if (file.name.toLowerCase().endsWith('.mid') || file.name.toLowerCase().endsWith('.midi')) {
+            this.files.push({
+              file: file,
+              id: Date.now() + Math.random()
+            });
+          }
+        });
+        
+        this.updateFileList();
+        this.updateButtons();
+      }
+      
+      updateFileList() {
+        if (this.files.length === 0) {
+          this.fileList.style.display = 'none';
+          return;
+        }
+        
+        this.fileList.style.display = 'block';
+        this.fileItems.innerHTML = '';
+        
+        this.files.forEach((item, index) => {
+          const fileItem = document.createElement('div');
+          fileItem.className = 'file-item';
+          fileItem.innerHTML = `
+            <span>${item.file.name}</span>
+            <div class="file-actions">
+              <button class="btn btn-secondary btn-sm" onclick="window.converter.removeFile(${index})">
+                ×
+              </button>
+            </div>
+          `;
+          this.fileItems.appendChild(fileItem);
+        });
+      }
+      
+      removeFile(index) {
+        this.files.splice(index, 1);
+        this.updateFileList();
+        this.updateButtons();
+      }
+      
+      updateButtons() {
+        this.convertBtn.disabled = this.files.length === 0;
+        this.clearBtn.disabled = this.files.length === 0;
+        
+        if (this.files.length > 0) {
+          this.convertBtn.classList.add('pulse');
+        } else {
+          this.convertBtn.classList.remove('pulse');
+        }
+      }
+      
+      clearFiles() {
+        this.files = [];
+        this.updateFileList();
+        this.updateButtons();
+      }
+      
+      showProgress(percent, text) {
+        this.progressContainer.style.display = 'block';
+        this.progressFill.style.width = percent + '%';
+        this.progressText.textContent = text;
+      }
+      
+      hideProgress() {
+        this.progressContainer.style.display = 'none';
+      }
+      
+      showStatus(message, type = 'success') {
+        this.statusMessage.textContent = message;
+        this.statusMessage.className = 'status ' + type;
+      }
+      
+      hideStatus() {
+        this.statusMessage.style.display = 'none';
+      }
+      
+      async convertAllFiles() {
+        if (this.files.length === 0) return;
+        
+        this.convertBtn.disabled = true;
+        this.clearBtn.disabled = true;
+        this.convertBtn.classList.remove('pulse');
+        
+        try {
+          for (let i = 0; i < this.files.length; i++) {
+            const item = this.files[i];
+            this.showProgress(((i + 1) / this.files.length) * 100, `Конвертация ${i + 1} из ${this.files.length}: ${item.file.name}`);
+            
+            await this.convertSingleFile(item);
+          }
+          
+          this.showProgress(100, 'Все файлы сконвертированы!');
+          this.showStatus('✅ Все файлы успешно сконвертированы!', 'success');
+          
+          // Автоматически очищаем список файлов
+          this.files = [];
+          this.updateFileList();
+          this.updateButtons();
+          
+          // Показываем последний сконвертированный файл
+          if (this.convertedFiles.length > 0) {
+            const lastFile = this.convertedFiles[this.convertedFiles.length - 1];
+            this.showConvertedFile(lastFile);
+          }
+          
+        } catch (error) {
+          console.error('Ошибка конвертации:', error);
+          this.showStatus('❌ Ошибка конвертации: ' + error.message, 'error');
+        } finally {
+          this.convertBtn.disabled = false;
+          this.clearBtn.disabled = false;
+        }
+      }
+      
+      async convertSingleFile(item) {
+        return new Promise(async (resolve, reject) => {
+          try {
+            const arrayBuffer = await item.file.arrayBuffer();
+            
+            // Анализируем MIDI файл
+            const midiData = this.parseMIDIFile(arrayBuffer);
+            
+            // Создаем аудио на основе реальных данных MIDI
+            const audioBuffer = this.createAudioFromMIDIData(midiData);
+            const audioBlob = new Blob([audioBuffer], { type: 'audio/wav' });
+            
+            const convertedFile = {
+              id: Date.now() + Math.random(),
+              name: item.file.name.replace('.mid', '').replace('.midi', '') + '.wav',
+              originalName: item.file.name,
+              blob: audioBlob,
+              size: item.file.size,
+              date: new Date(),
+              notesCount: midiData.notes.length,
+              duration: midiData.duration
+            };
+            
+            this.convertedFiles.push(convertedFile);
+            this.addToHistory(convertedFile);
+            
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
+        });
+      }
+      
+      parseMIDIFile(arrayBuffer) {
+        const dataView = new DataView(arrayBuffer);
+        const notes = [];
+        let maxTime = 0;
+        
+        // Проверяем заголовок MIDI
+        if (dataView.getUint32(0) !== 0x4D546864) { // 'MThd'
+          throw new Error('Неверный формат MIDI файла');
+        }
+        
+        const format = dataView.getUint16(8);
+        const numTracks = dataView.getUint16(10);
+        const division = dataView.getUint16(12);
+        
+        let offset = 14;
+        let tempo = 500000; // Default 120 BPM
+        let currentTime = 0;
+        
+        // Ищем треки
+        for (let trackNum = 0; trackNum < numTracks && offset < arrayBuffer.byteLength; trackNum++) {
+          if (dataView.getUint32(offset) !== 0x4D54726B) { // 'MTrk'
+            offset += 8;
+            continue;
+          }
+          
+          const trackLength = dataView.getUint32(offset + 4);
+          const trackStart = offset + 8;
+          const trackEnd = trackStart + trackLength;
+          
+          offset = trackStart;
+          currentTime = 0;
+          
+          // Парсим события в треке
+          while (offset < trackEnd && offset < arrayBuffer.byteLength) {
+            // Читаем deltaTime
+            let deltaTime = 0;
+            let byte;
+            do {
+              if (offset >= arrayBuffer.byteLength) break;
+              byte = dataView.getUint8(offset++);
+              deltaTime = (deltaTime << 7) | (byte & 0x7F);
+            } while (byte & 0x80);
+            
+            currentTime += deltaTime;
+            
+            if (offset >= arrayBuffer.byteLength) break;
+            
+            const statusByte = dataView.getUint8(offset);
+            
+            if (statusByte === 0xFF) {
+              // Meta event
+              if (offset + 2 >= arrayBuffer.byteLength) break;
+              const metaType = dataView.getUint8(offset + 1);
+              const length = dataView.getUint8(offset + 2);
+              
+              if (metaType === 0x51 && length === 3) {
+                // Tempo change
+                tempo = (dataView.getUint8(offset + 3) << 16) | 
+                        (dataView.getUint8(offset + 4) << 8) | 
+                         dataView.getUint8(offset + 5);
+              }
+              
+              offset += 3 + length;
+            } else if ((statusByte & 0xF0) === 0x90) {
+              // Note On event
+              if (offset + 2 >= arrayBuffer.byteLength) break;
+              const note = dataView.getUint8(offset + 1);
+              const velocity = dataView.getUint8(offset + 2);
+              
+              if (velocity > 0) {
+                // Вычисляем время в секундах
+                const timeInSeconds = (currentTime * tempo) / (1000000 * division);
+                if (timeInSeconds > maxTime) maxTime = timeInSeconds;
+                
+                notes.push({
+                  note: note,
+                  velocity: velocity,
+                  time: timeInSeconds,
+                  duration: 0.5 // Default duration, будет обновлено позже
+                });
+              }
+              
+              offset += 3;
+            } else if ((statusByte & 0xF0) === 0x80) {
+              // Note Off event
+              if (offset + 2 >= arrayBuffer.byteLength) break;
+              const note = dataView.getUint8(offset + 1);
+              
+              // Находим соответствующую ноту и устанавливаем длительность
+              for (let i = notes.length - 1; i >= 0; i--) {
+                if (notes[i].note === note && notes[i].duration === 0.5) {
+                  const timeInSeconds = (currentTime * tempo) / (1000000 * division);
+                  notes[i].duration = Math.max(0.1, timeInSeconds - notes[i].time);
+                  break;
+                }
+              }
+              
+              offset += 3;
+            } else {
+              // Другие события - пропускаем
+              let skipBytes = 2;
+              if ((statusByte & 0xF0) === 0xC0 || (statusByte & 0xF0) === 0xD0) {
+                skipBytes = 1;
+              }
+              offset += 1 + skipBytes;
+            }
+          }
+          
+          offset = trackEnd;
+        }
+        
+        // Сортируем ноты по времени
+        notes.sort((a, b) => a.time - b.time);
+        
+        return {
+          notes: notes,
+          duration: maxTime + 2, // Добавляем 2 секунды хвоста
+          division: division
+        };
+      }
+      
+      createAudioFromMIDIData(midiData) {
+        if (midiData.notes.length === 0) {
+          return this.createSilentAudio(1);
+        }
+        
+        const sampleRate = 44100;
+        const numSamples = Math.ceil(midiData.duration * sampleRate);
+        
+        const audioBuffer = new ArrayBuffer(44 + numSamples * 2);
+        const view = new DataView(audioBuffer);
+        
+        // WAV заголовок
+        this.writeWAVHeader(view, numSamples, sampleRate);
+        
+        // Генерируем аудио данные
+        const samples = new Int16Array(audioBuffer, 44, numSamples);
+        this.generateAudioData(samples, midiData.notes, sampleRate);
+        
+        return audioBuffer;
+      }
+      
+      generateAudioData(samples, notes, sampleRate) {
+        // Очищаем массив
+        samples.fill(0);
+        
+        // Генерируем звук для каждой ноты
+        notes.forEach(note => {
+          const startTime = Math.floor(note.time * sampleRate);
+          const duration = Math.floor(note.duration * sampleRate);
+          const frequency = this.midiToFrequency(note.note);
+          const amplitude = note.velocity / 127 * 0.3;
+          
+          // Генерируем ноту
+          for (let i = 0; i < duration; i++) {
+            const sampleIndex = startTime + i;
+            if (sampleIndex >= 0 && sampleIndex < samples.length) {
+              const t = sampleIndex / sampleRate;
+              
+              // Создаем огибающую для плавного звука
+              const envelope = Math.min(1, i / (sampleRate * 0.01)); // attack 10ms
+              const release = Math.min(1, (duration - i) / (sampleRate * 0.05)); // release 50ms
+              const amp = Math.min(envelope, release) * amplitude;
+              
+              // Синусоида с гармониками для реалистичности
+              const wave = Math.sin(2 * Math.PI * frequency * t) * amp;
+              const harmonics = 0.3 * Math.sin(2 * Math.PI * frequency * 2 * t) * amp;
+              const noise = (Math.random() - 0.5) * 0.05 * amp;
+              
+              // Добавляем к существующему значению (для наложения нот)
+              const currentValue = samples[sampleIndex] / 32767;
+              const newValue = currentValue + wave + harmonics + noise;
+              samples[sampleIndex] = Math.max(-32767, Math.min(32767, Math.floor(newValue * 32767)));
+            }
+          }
+        });
+      }
+      
+      midiToFrequency(note) {
+        return 440 * Math.pow(2, (note - 69) / 12);
+      }
+      
+      createSilentAudio(duration) {
+        const sampleRate = 44100;
+        const numSamples = Math.ceil(duration * sampleRate);
+        
+        const audioBuffer = new ArrayBuffer(44 + numSamples * 2);
+        const view = new DataView(audioBuffer);
+        
+        // WAV заголовок
+        this.writeWAVHeader(view, numSamples, sampleRate);
+        
+        // Тишина
+        const samples = new Int16Array(audioBuffer, 44, numSamples);
+        samples.fill(0);
+        
+        return audioBuffer;
+      }
+      
+      writeWAVHeader(view, numSamples, sampleRate) {
+        const byteRate = sampleRate * 2;
+        
+        // RIFF заголовок
+        this.setString(view, 0, 'RIFF');
+        view.setUint32(4, 36 + numSamples * 2, true);
+        this.setString(view, 8, 'WAVE');
+        
+        // fmt подзаголовок
+        this.setString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, byteRate, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        
+        // data подзаголовок
+        this.setString(view, 36, 'data');
+        view.setUint32(40, numSamples * 2, true);
+      }
+      
+      setString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      }
+      
+      showConvertedFile(convertedFile) {
+        this.currentAudioBlob = convertedFile.blob;
+        this.currentFileName = convertedFile.name;
+        
+        const audioUrl = URL.createObjectURL(convertedFile.blob);
+        this.audioPlayer.src = audioUrl;
+        
+        this.previewSection.style.display = 'block';
+        this.previewSection.scrollIntoView({ behavior: 'smooth' });
+        
+        setTimeout(() => this.startVisualization(), 500);
+      }
+      
+      downloadCurrentFile() {
+        if (!this.currentAudioBlob) return;
+        
+        const url = URL.createObjectURL(this.currentAudioBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = this.currentFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+      
+      showFileInfo() {
+        if (this.convertedFiles.length === 0) return;
+        
+        const lastFile = this.convertedFiles[this.convertedFiles.length - 1];
+        const info = `
+Файл: ${lastFile.originalName}
+Сконвертирован: ${lastFile.name}
+Размер: ${this.formatFileSize(lastFile.size)}
+Нот: ${lastFile.notesCount}
+Длительность: ${(lastFile.duration || 0).toFixed(2)} сек
+Дата: ${lastFile.date.toLocaleString('ru-RU')}
+        `;
+        
+        // Создаем модальное окно для информации
+        this.createModal('Информация о файле', info);
+      }
+      
+      startNewConversion() {
+        this.previewSection.style.display = 'none';
+        this.audioPlayer.src = '';
+        this.currentAudioBlob = null;
+        this.dropZone.scrollIntoView({ behavior: 'smooth' });
+      }
+      
+      addToHistory(convertedFile) {
+        const historyItem = document.createElement('div');
+        historyItem.className = 'history-item';
+        historyItem.innerHTML = `
+          <div class="history-header">
+            <div class="history-title">${convertedFile.name}</div>
+            <div class="history-time">${convertedFile.date.toLocaleTimeString()}</div>
+          </div>
+          <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">
+            Оригинал: ${convertedFile.originalName}
+          </div>
+          <div class="history-actions">
+            <button class="btn btn-secondary btn-sm" onclick="window.converter.playFromHistory('${convertedFile.id}')">
+              Прослушать
+            </button>
+            <button class="btn btn-success btn-sm" onclick="window.converter.downloadFromHistory('${convertedFile.id}')">
+              Скачать
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="window.converter.infoFromHistory('${convertedFile.id}')">
+              Инфо
+            </button>
+          </div>
+        `;
+        
+        this.historyList.prepend(historyItem);
+        
+        // Удаляем старые записи если их больше 10
+        const items = this.historyList.querySelectorAll('.history-item');
+        if (items.length > 10) {
+          items[items.length - 1].remove();
+        }
+      }
+      
+      playFromHistory(id) {
+        const file = this.convertedFiles.find(f => f.id == id);
+        if (file) {
+          this.showConvertedFile(file);
+        }
+      }
+      
+      downloadFromHistory(id) {
+        const file = this.convertedFiles.find(f => f.id == id);
+        if (file) {
+          const url = URL.createObjectURL(file.blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = file.name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+      }
+      
+      infoFromHistory(id) {
+        const file = this.convertedFiles.find(f => f.id == id);
+        if (file) {
+          const info = `
+Имя файла: ${file.name}
+Оригинал: ${file.originalName}
+Размер: ${this.formatFileSize(file.size)}
+Нот: ${file.notesCount}
+Длительность: ${(file.duration || 0).toFixed(2)} сек
+Дата конвертации: ${file.date.toLocaleString('ru-RU')}
+          `;
+          
+          this.createModal('Информация о файле', info);
+        }
+      }
+      
+      createModal(title, content) {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        
+        modal.innerHTML = `
+          <div class="modal-content">
+            <h3 class="modal-header">${title}</h3>
+            <div class="modal-body">${content}</div>
+            <button class="btn" onclick="this.closest('.modal').remove()" style="width: 100%;">
+              Закрыть
+            </button>
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+      }
+      
+      formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      }
+      
+      startVisualization() {
+        if (this.isVisualizing) return;
+        
+        this.isVisualizing = true;
+        this.setupAudioContext();
+        this.drawVisualization();
+      }
+      
+      setupAudioContext() {
+        if (!this.audioContext) {
+          this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        this.analyser = this.audioContext.createAnalyser();
+        this.analyser.fftSize = 256;
+        
+        const source = this.audioContext.createMediaElementSource(this.audioPlayer);
+        source.connect(this.analyser);
+        this.analyser.connect(this.audioContext.destination);
+      }
+      
+      drawVisualization() {
+        if (!this.isVisualizing || !this.analyser) return;
+        
+        const canvas = this.visualizer;
+        const ctx = this.ctx;
+        const width = canvas.width;
+        const height = canvas.height;
+        
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+        ctx.fillRect(0, 0, width, height);
+        
+        const bufferLength = this.analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        this.analyser.getByteFrequencyData(dataArray);
+        
+        const barWidth = (width / bufferLength) * 2.5;
+        let barHeight;
+        let x = 0;
+        
+        for (let i = 0; i < bufferLength; i++) {
+          barHeight = dataArray[i] / 2;
+          
+          const gradient = ctx.createLinearGradient(0, height - barHeight, 0, height);
+          gradient.addColorStop(0, '#8a2be2');
+          gradient.addColorStop(1, '#6a0dad');
+          
+          ctx.fillStyle = gradient;
+          ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+          
+          x += barWidth + 1;
+        }
+        
+        requestAnimationFrame(() => this.drawVisualization());
+      }
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      window.converter = new MIDIConverter();
+      
+      const audioPlayer = document.getElementById('audioPlayer');
+      audioPlayer.addEventListener('play', () => {
+        if (window.converter.audioContext && window.converter.audioContext.state === 'suspended') {
+          window.converter.audioContext.resume();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
